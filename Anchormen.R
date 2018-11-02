@@ -4,6 +4,7 @@ library(foreign)
 library(dplyr)
 library(plsgenomics)
 library(tidyr)
+library(neuralnet)
 
 ?read.arff
 bcam <- read.arff("./assignmentDS/BreastCancerAll.missing.arff")
@@ -95,10 +96,33 @@ model_rf$test$confusion
 ?brnn
 # bc_fac <- readRDS("bc_fac.rds")
 bc_fac <- sapply(bc_fac, as.numeric)
-b_fit <- brnn(x = as.matrix(bc_fac[,1:10]), y = as.numeric(bc_fac$class))
-b_fit <- brnn(bc_fac$class ~ bc_fac[,1:10])
-predict.brnn
+
+b_fit <- brnn(x = bc_fac[,1:100], y = bc_fac[,'class'])
+
+predict(b_fit, newdata = bc_fac[1:10,1:100])
+
+mean(as.numeric(round(predict(b_fit, newdata = bc_fac[1:10,1:100])) == bc_fac[1:10,'class']))
+
+
+
 # Neural net w/ neuralnet::neuralnet() =====
+# bc_fac <- readRDS("bc_fac.rds")
+
+names(bc_fac) <- make.names(names(bc_fac))
+bc_fac <- sapply(bc_fac, as.numeric)
+
+n <- names(bc_fac)
+f <- as.formula(paste("class ~", paste(n[!n %in% "class"], collapse = " + ")))
+f
+
+nn <- neuralnet(formula = f, data = bc_fac, hidden = 2)
+test <- as.data.frame(bc_fac) %>% 
+  sample_n(10)
+  xtest <- test %>% select(-class)
+  ytest <- test %>% select(class)
+preds <- round(compute(nn, xtest)$net.result)
+
+plot()
 
 # SVM w/ kernlab::ksvm() =====
 
