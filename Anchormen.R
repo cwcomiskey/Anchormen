@@ -1,14 +1,15 @@
 # Load/install packages
-# install.packages("foreign")
 library(foreign)
 library(dplyr)
 library(plsgenomics)
 library(tidyr)
 library(neuralnet)
+library(nnet)
 
 ?read.arff
 bcam <- read.arff("./assignmentDS/BreastCancerAll.missing.arff")
 bcar <- read.arff("./assignmentDS/BreastCancerAll.reduced.using.cfs.missing.arff")
+# bcam <- readRDS('bcam.rds')
 
 # EDA ====
 "class" %in% names(bcam)
@@ -93,39 +94,82 @@ model_rf$test$confusion
 # NO GO (req's binary)
 
 # Bayesian Regularization (Feed-Forward) Neural Net - brnn ====
-?brnn
 # bc_fac <- readRDS("bc_fac.rds")
 bc_fac <- sapply(bc_fac, as.numeric)
 
 b_fit <- brnn(x = bc_fac[,1:100], y = bc_fac[,'class'])
-
 predict(b_fit, newdata = bc_fac[1:10,1:100])
 
 mean(as.numeric(round(predict(b_fit, newdata = bc_fac[1:10,1:100])) == bc_fac[1:10,'class']))
 
-
-
 # Neural net w/ neuralnet::neuralnet() =====
 # bc_fac <- readRDS("bc_fac.rds")
+grep("class", colnames(bc_fac))
+bc_fac <- bc_fac[,3042:3046]
+
+# ======== # https://www.r-bloggers.com/multilabel-classification-with-neuralnet-package/
+train <- cbind(wines[, 2:14], class.ind(as.factor(wines$label)))
+# Set labels name
+names(train) <- c(names(wines)[2:14],"l1","l2","l3")
+# ======== My turn ====== #
+bc_train <- cbind.data.frame(bc_fac[,1:4], class.ind(bc_fac$class))
+names(bc_train) <- c(names(bc_fac[,1:4]), "l1", "l2", "l3")
+# ======== #
 
 names(bc_fac) <- make.names(names(bc_fac))
-bc_fac <- sapply(bc_fac, as.numeric)
 
 n <- names(bc_fac)
 f <- as.formula(paste("class ~", paste(n[!n %in% "class"], collapse = " + ")))
-f
 
-nn <- neuralnet(formula = f, data = bc_fac, hidden = 2)
-test <- as.data.frame(bc_fac) %>% 
+bc_fac <- sapply(bc_fac, as.numeric)
+nn <- neuralnet(formula = f, data = bc_fac, hidden = 2, rep = 3)
+test <- as.data.frame(bc_fac) %>%
   sample_n(10)
   xtest <- test %>% select(-class)
   ytest <- test %>% select(class)
-preds <- round(compute(nn, xtest)$net.result)
+neuralnet::compute(x = nn, xtest)$net.result
 
-plot()
+plot(nn)
+
+# neuralnet::neuralnet(...) with class indicator columns ======
+bc_num <- readRDS("bc_num.rds")
+names(bc_num)[1:10]
+
+# t <- min(sapply(bc_num, min))
+# t <- max(sapply(select(as.data.frame(bc_num), -class), max))
+
+dim(bc_num) # [1]  155 9136
+grep("class", colnames(bc_num)) # [1] 9136
+
+bc_num <- cbind(bc_num[,1:9135], class.ind(bc_num[,'class']) ) # add class indicators 
+names(bc_num) <- c(names(bc_num[,1:9135]), "l1", "l2", "l3")
+
+dim(bc_num) # [1]  155 9138
+class(bc_num) # [1] "data.frame"
+
+names(bc_num010) <- make.names(names(bc_num010))
+
+# bc_num010 <- sapply(bc_fac, round)
+
+n <- names(bc_num010)
+f <- as.formula(paste("l1 + l2 + l3 ~", paste(n[!n %in% c("l1","l2","l3")], collapse = " + ")))
+
+nn <- neuralnet(formula = f, data = bc_num010)
+test <- as.data.frame(bc_num010) %>%
+  sample_n(10)
+xtest <- test %>% select(-l1, -l2, -l3)
+ytest <- test %>% select(l1, l2, l3)
+neuralnet::compute(x = nn, xtest)$net.result
+
+
+plot(nn)
+
+
+
+
+
 
 # SVM w/ kernlab::ksvm() =====
-
 # Algorithm ======
 bc_fac <- readRDS("bc_fac.rds")
 nsim <- 15
