@@ -38,23 +38,24 @@ bc_fac <- bcam %>%
 # Multinomial partial least squares regression =====
 #   Requires numeric, matrices
 ?multinom.spls
+bc_num <- readRDS("bc_num.rds")
 index <- sample(1:155, 140)
 
 train <- bc_num[index,] 
-Xtrain <- train %>%
-  select(-class) %>%
-  as.matrix()
-Ytrain <- train %>%
-  select(class) %>%
-  as.matrix()
+  Xtrain <- train %>%
+    select(-class) %>%
+    as.matrix()
+  Ytrain <- train %>%
+    select(class) %>%
+    as.matrix()
 
 test <- bc_num[-index,]
-Xtest <- test %>%
-  select(-class) %>%
-  as.matrix()
-Ytest <- test %>%
-  select(class) %>%
-  as.matrix()
+  Xtest <- test %>%
+    select(-class) %>%
+    as.matrix()
+  Ytest <- test %>%
+    select(class) %>%
+    as.matrix()
 
 fit <- multinom.spls(Xtrain = Xtrain, Ytrain = Ytrain, ncomp = 5,
                      lambda.ridge = 2, lambda.l1 = 0.5, adapt = TRUE,
@@ -65,32 +66,20 @@ sum(fit$hatYtest == Ytest) / length(Ytest)
 
 # randomForest ======
 # bc_fac <- readRDS("bc_fac.rds")
-names(bc_fac) <- make.names(bc_fac)
 
 index <- sample(1:157, 140)
 
 train <- bc_fac[index,] 
-Xtrain <- train %>%
-  dplyr::select(-'class') 
-Ytrain <- train %>%
-  select(class) 
-
 test <- bc_fac[-index,]
-Xtest <- test %>%
-  select(-class) 
-Ytest <- test %>%
-  select(class) 
-
-
-
-train <- bc_fac[index,] 
-test <- bc_fac[-index,]
-
   xtest <- test %>%
     select(-class)
   ytest <- test %>%
     select(class) %>%
     mutate(class = as.factor(class))
+  
+names(train) <- make.names(names(train))
+names(xtest) <- make.names(names(xtest))
+
 model_rf <- randomForest::randomForest(
   as.factor(class) ~ ., data=train, importance=TRUE, ntree=50, 
   xtest = xtest, ytest = ytest$class
@@ -100,11 +89,14 @@ model_rf$test$confusion
 # SNPassoc - NA =====
 ?setupSNP
 ?WGassociation
-# NO GO
+# NO GO (req's binary)
 
 # Bayesian Regularization (Feed-Forward) Neural Net - brnn ====
 ?brnn
-b_fit <- brnn(class ~ ., data = bc_fac)
+# bc_fac <- readRDS("bc_fac.rds")
+bc_fac <- sapply(bc_fac, as.numeric)
+b_fit <- brnn(x = as.matrix(bc_fac[,1:10]), y = as.numeric(bc_fac$class))
+b_fit <- brnn(bc_fac$class ~ bc_fac[,1:10])
 predict.brnn
 # Neural net w/ neuralnet::neuralnet() =====
 
