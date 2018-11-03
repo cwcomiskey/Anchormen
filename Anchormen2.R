@@ -10,6 +10,7 @@ library(nnet)
 library(brnn)
 library(kernlab)
 
+# Data ====
 bcam <- readRDS('bcam.rds')
 
 # Response ==
@@ -82,8 +83,8 @@ test <- dat[-samp,]
   Ytest <- test %>%
     select(class) 
 
-rf <- randomForest(class ~ ., data = train, xtest = Xtest, ytest = Ytest$class)  
-rf$test$confusion
+rf <- randomForest(class ~ ., data = train)  
+mean(predict(rf, newdata = test) == Ytest$class) # Success prob!
 
 # brnn() (computationally infeasible??) =====
 dat <- cbind.data.frame(Res, Covs9135) 
@@ -132,7 +133,8 @@ f <- as.formula(paste("HER2. + HR. + TN ~", paste(n[!n %in% c("HER2.","HR.","TN"
 
 nn <- neuralnet(formula = f, data = train, hidden = 3)
 
-neuralnet::compute(x = nn, Xtest)$net.result
+probs <- neuralnet::compute(x = nn, Xtest)$net.result 
+mean(apply(probs, 1, which.max) == apply(Ytest, 1, which.max))
 
 # plot(nn)
 
@@ -154,4 +156,4 @@ test <- dat[-samp,]
 svm <- ksvm(class ~ ., data = train, kernel="rbfdot",
             kpar=list(sigma=0.05), cross=3)
 
-predict(svm, newdata = Xtest); Ytest
+mean(predict(svm, newdata = Xtest) == Ytest$class)
