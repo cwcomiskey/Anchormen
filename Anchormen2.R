@@ -4,8 +4,11 @@ library(foreign)
 library(dplyr)
 library(plsgenomics)
 library(tidyr)
+library(randomForest)
 library(neuralnet)
 library(nnet)
+library(brnn)
+library(kernlab)
 
 bcam <- readRDS('bcam.rds')
 
@@ -29,8 +32,8 @@ table(sapply(Covs[1,], class))
   Covs9135 <- Covs %>%
     dplyr::select_if(is.numeric)
 
-  # 3: n x 9000 indicators
-  Covs0101 <- Covs9135 %>%
+  # 3: n x 9135 indicators
+  Covs01 <- Covs9135 %>%
     sapply(round) %>% 
     as.data.frame() %>%
     setNames(names(Covs9135)) 
@@ -63,3 +66,92 @@ fit <- multinom.spls(Xtrain = Xtrain, Ytrain = Ytrain, ncomp = 5,
                      maxIter = 25, svd.decompose = TRUE, Xtest = Xtest)
 fit$converged # [1] 1 Bingo.
 sum(fit$hatYtest == Ytest) / length(Ytest) 
+
+# randomForest() =====
+samp <- sample(1:157, 140)
+
+dat <- cbind.data.frame(Res, Covs3045) 
+
+names(dat) <- make.names(names(dat))
+
+train <- dat[samp,] 
+
+test <- dat[-samp,]
+  Xtest <- test %>%
+    select(-class) 
+  Ytest <- test %>%
+    select(class) 
+
+rf <- randomForest(class ~ ., data = train, xtest = Xtest, ytest = Ytest$class)  
+rf$test$confusion
+
+# brnn() (computationally infeasible??) =====
+dat <- cbind.data.frame(Res, Covs9135) 
+samp <- sample(1:157, 140)
+
+# names(dat) <- make.names(names(dat))
+
+train <- dat[samp,] 
+  Xtrain <- train %>%
+    select(-class) 
+  Ytrain <- train %>%
+    select(class) 
+
+test <- dat[-samp,]
+  Xtest <- test %>%
+    select(-class) 
+  Ytest <- test %>%
+    select(class) 
+
+b_fit <- brnn(as.numeric(Ytrain$class) ~ as.matrix(Xtrain))
+predict(b_fit, newdata = as.matrix(Xtest))
+mean(as.numeric(round(predict(b_fit, newdata = as.matrix(Xtest))) == as.numeric(Ytest$class)))
+
+# neuralnet::neuralnet() ====
+dat <- cbind.data.frame(Res01, Covs9135) %>%
+  tidyr::drop_na()
+
+names(dat) <- make.names(names(dat))
+
+samp <- sample(1:157, 140)
+
+train <- dat[samp,] 
+  # Xtrain <- train %>%
+  #   select(-c("HER2.", "HR.", "TN")) 
+  # Ytrain <- train %>%
+  #   select(c("HER2.", "HR.", "TN")) 
+
+test <- dat[-samp,]
+  Xtest <- test %>%
+    select(-c("HER2.", "HR.", "TN")) 
+  Ytest <- test %>%
+    select(c("HER2.", "HR.", "TN")) 
+
+n <- names(dat)
+f <- as.formula(paste("HER2. + HR. + TN ~", paste(n[!n %in% c("HER2.","HR.","TN")], collapse = " + ")))
+
+nn <- neuralnet(formula = f, data = train, hidden = 3)
+
+neuralnet::compute(x = nn, Xtest)$net.result
+
+# plot(nn)
+
+# kernlab::ksvm() =====
+dat <- cbind.data.frame(Res, Covs9135) %>%
+  tidyr::drop_na()
+names(dat) <- make.names(names(dat))
+
+samp <- sample(1:155, 140)
+
+train <- dat[samp,] 
+
+test <- dat[-samp,]
+  Xtest <- test %>%
+    select(-class) 
+  Ytest <- test %>%
+    select(class) 
+
+svm <- ksvm(class ~ ., data = train, kernel="rbfdot",
+            kpar=list(sigma=0.05), cross=3)
+
+predict(svm, newdata = Xtest); Ytest
