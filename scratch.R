@@ -1,1 +1,0 @@
-"class" %in% names(bcam)
