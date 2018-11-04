@@ -11,7 +11,8 @@ library(brnn)
 library(kernlab)
 
 # Data ====
-bcam <- readRDS('bcam.rds')
+bcam <- readRDS('bcam.rds') %>%
+  drop_na()
 
 # Response ==
 Res <- bcam %>%
@@ -42,7 +43,6 @@ table(sapply(Covs[1,], class))
 # multinom.spls() =====
 # Res, Covs9135
 dat <- cbind.data.frame(Res, Covs9135) %>%
-    drop_na() %>%
     mutate(class = as.numeric(class) - 1)
 samp <- sample(1:155, 140)
 
@@ -69,10 +69,8 @@ fit$converged # [1] 1 Bingo.
 sum(fit$hatYtest == Ytest) / length(Ytest) 
 
 # randomForest() =====
-samp <- sample(1:157, 140)
 
 dat <- cbind.data.frame(Res, Covs3045) 
-
 names(dat) <- make.names(names(dat))
 
 train <- dat[samp,] 
@@ -84,9 +82,9 @@ test <- dat[-samp,]
     select(class) 
 
 rf <- randomForest(class ~ ., data = train)  
-mean(predict(rf, newdata = test) == Ytest$class) # Success prob!
+s <- mean(predict(rf, newdata = test) == Ytest$class) # Success prob!
 
-# brnn() (computationally infeasible??) =====
+# brnn() (computationally infeasible for this) =====
 dat <- cbind.data.frame(Res, Covs9135) 
 samp <- sample(1:157, 140)
 
@@ -109,12 +107,9 @@ predict(b_fit, newdata = as.matrix(Xtest))
 mean(as.numeric(round(predict(b_fit, newdata = as.matrix(Xtest))) == as.numeric(Ytest$class)))
 
 # neuralnet::neuralnet() ====
-dat <- cbind.data.frame(Res01, Covs9135) %>%
-  tidyr::drop_na()
+dat <- cbind.data.frame(Res01, Covs9135) 
 
 names(dat) <- make.names(names(dat))
-
-samp <- sample(1:157, 140)
 
 train <- dat[samp,] 
   # Xtrain <- train %>%
