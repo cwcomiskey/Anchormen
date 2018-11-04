@@ -7,7 +7,8 @@ ntrain = 135
 container <- data.frame(Iteration = NA, Method = NA, Success = NA)
 
 for(i in 1:nsim){
-  
+  print(i)
+  print(dim(container))
   # Current iteration sample
   samp <- sample(1:155, 140)
 
@@ -103,3 +104,11 @@ for(i in 1:nsim){
   
   
 }
+
+saveRDS(container, "container.rds")
+
+library(ggplot2)
+
+ggplot(data = container) +
+  geom_point(aes(x = Method, y = Success)) +
+  ggtitle("Toy Comparison Study of Predictive Models for SNP Genetic Data")

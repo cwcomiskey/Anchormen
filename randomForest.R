@@ -1,7 +1,12 @@
+source("PackData.R") # Load packages and data
+
 dat <- cbind.data.frame(Res, Covs3045) 
+
+# set.seed(101513)
 
 names(dat) <- make.names(names(dat))
 
+# Train/test, random selection ====
 samp <- sample(1:155, 140)
 
 train <- dat[samp,] 
@@ -15,6 +20,7 @@ test <- dat[-samp,]
 rf <- randomForest(class ~ ., data = train, importance = TRUE,
                    mtry = 100, ntree = 500)  
 
+# Importance measures ====
 rf_imp <- rf$importance
   rf_imp_MDA <- rf_imp %>%
     as.data.frame() %>%
@@ -27,21 +33,28 @@ rf_imp <- rf$importance
     arrange(desc(MeanDecreaseGini)) %>%
     .[1:5, c(5,  6)]
   
-# Plot  
-randomForest::varImpPlot(rf, type=1, pch=19, col=1, cex=.5, main="")
+# Plot ====
+randomForest::varImpPlot(rf, type=1, pch=19, col=1, cex=.5, main="Variable Importance", n.var = 10)
 randomForest::varImpPlot(rf, type=2, pch=19, col=1, cex=.5, main="")
 
-mean(predict(rf, newdata = test) == Ytest$class) # Success prob!
+# Prediction =====
+predict(rf, newdata = test) 
+mean(predict(rf, newdata = test) == Ytest$class) 
 
-?replicate
-# mean(replicate(100, mean(rnorm(25))))
+# replicate =====
+# mean(replicate(20, f())) # must wrap above in function "f"
 
-# Key question: are variable important measure persistent (correlated) across random samples of train/test?
-for(i in 1:nsim){
-  # Random train/test sample
-  # Fit model
-  # Var Imp rank
-}
-  # Cor()
-  # i.e. Do relative ranks tend to remain similar?
-  # i.e. Do more important variables tend to remain more important across samples, less important remain less?
+# LIME ======
+rf_fit <- caret::train(
+  class ~ ., data = train, method = "rf", # *****
+  importance=TRUE, ntree=500,
+  tuneGrid = data.frame(mtry = 100)
+) 
+
+explainer <- lime::lime(train, rf_fit) 
+
+explanation <- lime::explain(train[1,], explainer = explainer, 
+                             n_labels = 1, n_features = 5)
+
+explanation[,c(1:4, 7:10, 13)]
+lime::plot_features(explanation)
